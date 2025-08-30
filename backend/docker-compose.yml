@@ -10,11 +10,23 @@ services:
     depends_on:
       - postgres
       - redis
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: kalinin_egor
+      POSTGRES_PASSWORD: 1234567890
+      POSTGRES_DB: sber
+      # Redis inside the compose network uses default 6379
+      REDIS_URL: redis://redis:6379
+      REDIS_USER: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: root
+      REDIS_DB: 0
 
   postgres:
     image: postgres:15
     ports:
-      - "5440:5440"
+      - "5440:5432"
     environment:
       POSTGRES_USER: kalinin_egor
       POSTGRES_PASSWORD: 1234567890
@@ -28,7 +40,7 @@ services:
     container_name: redis
     image: redis:latest
     ports:
-      - "6376:6389"  # Обычно Redis слушает на 6379
+      - "6376:6379"  # Обычно Redis слушает на 6379
     volumes:
       - redis_data:/data
     deploy:
