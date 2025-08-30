@@ -55,11 +55,10 @@ class UserRepository(BaseRepository[UserSchema, User]):
             raise DBException("Error while updating refresh token")
 
     async def set_refresh_token(self, user_id: int, refresh_token: str):
-        """Alias for updating refresh token with commit."""
+        """Update refresh token without commit (will be handled by UoW)."""
         await self._session.execute(
             update(User).where(User.id == user_id).values(refresh_token=refresh_token)
         )
-        await self._session.commit()
 
     async def create_user(self, user_data: UserCreate) -> int:
         """Create a new user."""

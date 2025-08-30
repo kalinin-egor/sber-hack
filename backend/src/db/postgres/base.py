@@ -23,11 +23,15 @@ class BaseRepository(Generic[Schema, Model], ABC):
 
     async def insert_one(self, obj: Schema) -> int:
         try:
-            insertion_result = await self._session.execute(insert(self.model).returning(self.model), obj.model_dump())
-        except IOError:
+            insertion_result = await self._session.execute(
+                insert(self.model).returning(self.model.id), 
+                obj.model_dump()
+            )
+        except Exception as e:
+            logging.error(f"Error inserting object: {e}")
             raise DBException("Error while adding object to database")
-        inserted_obj = insertion_result.scalars().one()
-        return int(str(inserted_obj.id))
+        inserted_id = insertion_result.scalar()
+        return int(inserted_id)
 
     async def update_by_id(self, obj_id: int, obj: Schema) -> Schema:
         try:

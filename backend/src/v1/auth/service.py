@@ -235,6 +235,7 @@ class AuthService:
 
             # Save refresh token to database
             await uow.users.set_refresh_token(user.id, tokens.refresh_token)
+            await uow.commit()
 
             # Return tokens and user info
             return {
