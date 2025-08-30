@@ -8,27 +8,27 @@ services:
     ports:
       - "8074:8074"
     depends_on:
-      - vc_postgres_container
+      - postgres
       - redis
 
-  vc_postgres_container:
+  postgres:
     image: postgres:15
     ports:
-      - "5432:5432"
+      - "5440:5432"
     environment:
       POSTGRES_USER: kalinin_egor
       POSTGRES_PASSWORD: 1234567890
-      POSTGRES_DB: postgres
+      POSTGRES_DB: sber
     volumes:
       - postgres_data:/var/lib/postgresql/data
     mem_limit: 5g
     cpus: 0.5
 
   redis:
-    container_name: vc_redis_container
+    container_name: redis
     image: redis:latest
     ports:
-      - "6377:6389"  # Обычно Redis слушает на 6379
+      - "6376:6389"  # Обычно Redis слушает на 6379
     volumes:
       - redis_data:/data
     deploy:
