@@ -45,16 +45,8 @@ class UserSchema(BaseModel):
     username: str
     password_hash: str
     registered_at: Optional[datetime] = None
-
-    # Legacy fields for backward compatibility
-    refresh_token: Optional[str] = None
-    balance: Optional[int] = 0
-    is_active: Optional[bool] = True
-    created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    
-    # USDT wallet field
-    usdt_wallet: Optional[str] = None
+
 
     model_config = ConfigDict(from_attributes=True)
 

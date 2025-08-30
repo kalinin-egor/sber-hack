@@ -16,7 +16,7 @@ async def lifespan(app):
     # Инициализация контейнеров, если ещё не выполнена
     initialize_containers()
 
-    # Base.metadata.drop_all(bind=sync_engine)
+    Base.metadata.drop_all(bind=sync_engine)
     Base.metadata.create_all(bind=sync_engine)
 
     try:
