@@ -43,4 +43,4 @@ def transcribe_russian_audio(audio_path: str) -> str:
     
     except Exception as e:
         logger.error(f"Error during audio transcription: {e}")
-        return f"Ошибка при транскрибации аудио: {str(e)}"sc
+        return f"Ошибка при транскрибации аудио: {str(e)}"
