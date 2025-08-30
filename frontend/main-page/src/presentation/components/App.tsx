@@ -24,6 +24,10 @@ export function App() {
   const { state, logout } = useAuth();
   const [transcriptions, setTranscriptions] = useState<TranscriptionResult[]>([]);
   const [activeTab, setActiveTab] = useState("analyzer");
+  const [appError, setAppError] = useState<string | null>(null);
+
+  // Логирование для отладки
+  console.log('App component rendered, auth state:', state.isAuthenticated);
 
   const handleTranscriptionComplete = (result: TranscriptionResult) => {
     setTranscriptions(prev => [...prev, result]);
@@ -36,12 +40,31 @@ export function App() {
       await logout();
     } catch (error) {
       console.error('Logout error:', error);
+      setAppError('Ошибка выхода из системы');
     }
   };
 
   // Если пользователь не авторизован, показываем страницу авторизации
   if (!state.isAuthenticated) {
     return <AuthPage />;
+  }
+
+  // Если есть критическая ошибка приложения
+  if (appError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-50">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full mx-4">
+          <h2 className="text-xl font-bold text-red-600 mb-4">Ошибка приложения</h2>
+          <p className="text-gray-700 mb-4">{appError}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="w-full bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700"
+          >
+            Перезагрузить страницу
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

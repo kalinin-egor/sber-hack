@@ -283,7 +283,11 @@ export function AudioAnalyzer({ onTranscriptionComplete }: { onTranscriptionComp
                     Выберите животное
                   </h3>
                 </div>
-                <Select value={selectedAnimalId?.toString() || ''} onValueChange={(value) => setSelectedAnimalId(value ? parseInt(value) : null)}>
+                <Select value={selectedAnimalId?.toString() || ''} onValueChange={(value) => {
+                  if (value && value !== 'loading') {
+                    setSelectedAnimalId(parseInt(value));
+                  }
+                }}>
                   <SelectTrigger className="w-full h-12 bg-white dark:bg-gray-900 border-emerald-300 dark:border-emerald-700">
                     <SelectValue placeholder="🐾 Выберите животное для анализа..." />
                   </SelectTrigger>
@@ -295,7 +299,7 @@ export function AudioAnalyzer({ onTranscriptionComplete }: { onTranscriptionComp
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="" disabled>
+                      <SelectItem value="loading" disabled>
                         Загрузка животных...
                       </SelectItem>
                     )}
