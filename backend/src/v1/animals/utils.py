@@ -88,6 +88,8 @@ def _convert_with_ffmpeg(audio_path: str) -> tuple[torch.Tensor, int]:
         temp_wav_path = temp_wav.name
     
     try:
+        logger.info(f"Converting {audio_path} to WAV format...")
+        
         # Конвертируем в WAV с помощью ffmpeg
         cmd = [
             'ffmpeg', '-i', audio_path,
@@ -98,10 +100,21 @@ def _convert_with_ffmpeg(audio_path: str) -> tuple[torch.Tensor, int]:
             temp_wav_path
         ]
         
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        logger.info(f"Running ffmpeg command: {' '.join(cmd)}")
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         
         if result.returncode != 0:
+            logger.error(f"ffmpeg stderr: {result.stderr}")
+            logger.error(f"ffmpeg stdout: {result.stdout}")
             raise Exception(f"ffmpeg conversion failed: {result.stderr}")
+        
+        # Проверяем что файл создался
+        if not os.path.exists(temp_wav_path):
+            raise Exception("ffmpeg did not create output file")
+        
+        file_size = os.path.getsize(temp_wav_path)
+        logger.info(f"Converted file created: {temp_wav_path} ({file_size} bytes)")
         
         # Загружаем конвертированный WAV файл
         with wave.open(temp_wav_path, 'rb') as wav_file:
@@ -109,15 +122,28 @@ def _convert_with_ffmpeg(audio_path: str) -> tuple[torch.Tensor, int]:
             audio_data = wav_file.readframes(n_frames)
             audio_array = np.frombuffer(audio_data, dtype=np.int16)
             audio_array = audio_array.astype(np.float32) / 32768.0  # normalize to [-1, 1]
-            wav = torch.from_numpy(audio_array).unsqueeze(0)
+            
+            # Создаем тензор с правильной размерностью [channels, time]
+            wav = torch.from_numpy(audio_array).unsqueeze(0)  # [1, time] для моно
             sr = 16000
         
+        logger.info(f"Successfully loaded converted audio: shape={wav.shape}, sr={sr}")
         return wav, sr
         
+    except subprocess.TimeoutExpired:
+        logger.error("ffmpeg conversion timed out")
+        raise Exception("Audio conversion timed out")
+    except Exception as e:
+        logger.error(f"Error during ffmpeg conversion: {e}")
+        raise
     finally:
         # Удаляем временный файл
         if os.path.exists(temp_wav_path):
-            os.unlink(temp_wav_path)
+            try:
+                os.unlink(temp_wav_path)
+                logger.info(f"Cleaned up temporary file: {temp_wav_path}")
+            except Exception as e:
+                logger.warning(f"Failed to delete temporary file {temp_wav_path}: {e}")
 
 
 def transcribe_russian_audio(audio_path: str) -> str:
@@ -131,38 +157,76 @@ def transcribe_russian_audio(audio_path: str) -> str:
         str: распознанный текст
     """
     try:
+        logger.info(f"Starting transcription for file: {audio_path}")
+        
+        # Проверяем что файл существует
+        if not os.path.exists(audio_path):
+            raise Exception(f"Audio file not found: {audio_path}")
+        
+        file_size = os.path.getsize(audio_path)
+        logger.info(f"Audio file size: {file_size} bytes")
+        
         # Загрузка и подготовка аудио с улучшенной обработкой ошибок
         wav, sr = load_audio_file(audio_path)
         
+        logger.info(f"Audio loaded successfully: shape={wav.shape}, sample_rate={sr}")
+        
         # Ресемплинг если необходимо
         if sr != 16000:
+            logger.info(f"Resampling from {sr}Hz to 16000Hz")
             wav = torchaudio.functional.resample(wav, sr, 16000)
         
         # Конвертация стерео в моно если необходимо
         if wav.dim() > 1 and wav.size(0) > 1:
+            logger.info("Converting stereo to mono")
             wav = wav.mean(dim=0, keepdim=True)
         
-        # Убеждаемся что размерность правильная
+        # Исправляем размерность тензора для модели Wav2Vec2
+        # Модель ожидает: [batch_size, channels, time] или [channels, time]
         if wav.dim() == 1:
+            # [time] -> [1, time]
             wav = wav.unsqueeze(0)
+        elif wav.dim() == 2:
+            # [channels, time] - это правильно
+            pass
+        elif wav.dim() == 3:
+            # [batch, channels, time] - берем первый batch
+            wav = wav.squeeze(0)
+        elif wav.dim() == 4:
+            # [batch, channels, time, features] - неправильная размерность
+            # Берем первый batch и убираем последнюю размерность
+            wav = wav.squeeze(0).squeeze(-1)
+        
+        # Убеждаемся что у нас правильная размерность [channels, time]
+        if wav.dim() != 2:
+            raise Exception(f"Invalid audio tensor shape after processing: {wav.shape}")
+        
+        logger.info(f"Final audio tensor shape: {wav.shape}")
 
         # Загрузка модели для русского языка
+        logger.info("Loading Wav2Vec2 model...")
         model_name = "bond005/wav2vec2-large-ru-golos"
         processor = Wav2Vec2Processor.from_pretrained(model_name)
         model = Wav2Vec2ForCTC.from_pretrained(model_name)
         model.eval()
+        logger.info("Model loaded successfully")
 
         # Обработка аудио
+        logger.info("Processing audio with model...")
         inputs = processor(wav, sampling_rate=16000, return_tensors="pt", padding=True)
 
         # Распознавание
+        logger.info("Performing transcription...")
         with torch.no_grad():
             logits = model(**inputs).logits
 
         predicted_ids = torch.argmax(logits, dim=-1)
         transcription = processor.batch_decode(predicted_ids)
 
-        return transcription[0]
+        result = transcription[0]
+        logger.info(f"Transcription completed: {result[:100]}...")
+        
+        return result
     
     except Exception as e:
         logger.error(f"Error during audio transcription: {e}")
