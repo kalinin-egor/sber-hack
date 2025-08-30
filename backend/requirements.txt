@@ -67,3 +67,7 @@ transformers
 torch
 torchaudio
 gigachat
+# Audio processing dependencies
+soundfile
+librosa
+ffmpeg-python

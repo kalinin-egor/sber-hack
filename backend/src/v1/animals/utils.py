@@ -3,9 +3,121 @@ import torch
 import torchaudio
 import logging
 from gigachat import GigaChat
+import os
+import subprocess
+import tempfile
+import wave
+import numpy as np
 
 
 logger = logging.getLogger(__name__)
+
+
+def load_audio_file(audio_path: str) -> tuple[torch.Tensor, int]:
+    """
+    Загружает аудиофайл с fallback методами для различных форматов
+    
+    Args:
+        audio_path (str): путь к аудиофайлу
+    
+    Returns:
+        tuple[torch.Tensor, int]: (аудио данные, частота дискретизации)
+    """
+    try:
+        # Попытка загрузки через torchaudio
+        wav, sr = torchaudio.load(audio_path)
+        return wav, sr
+    except Exception as e:
+        logger.warning(f"torchaudio.load failed: {e}")
+        
+        # Fallback: используем wave для WAV файлов
+        try:
+            if audio_path.lower().endswith('.wav'):
+                with wave.open(audio_path, 'rb') as wav_file:
+                    # Получаем параметры
+                    n_channels = wav_file.getnchannels()
+                    sample_width = wav_file.getsampwidth()
+                    sr = wav_file.getframerate()
+                    n_frames = wav_file.getnframes()
+                    
+                    # Читаем данные
+                    audio_data = wav_file.readframes(n_frames)
+                    
+                    # Конвертируем в numpy array
+                    if sample_width == 2:  # 16-bit
+                        audio_array = np.frombuffer(audio_data, dtype=np.int16)
+                    elif sample_width == 4:  # 32-bit
+                        audio_array = np.frombuffer(audio_data, dtype=np.int32)
+                    else:  # 8-bit
+                        audio_array = np.frombuffer(audio_data, dtype=np.uint8)
+                    
+                    # Нормализуем
+                    audio_array = audio_array.astype(np.float32) / (2**(sample_width*8-1))
+                    
+                    # Конвертируем в torch tensor
+                    if n_channels == 2:
+                        audio_array = audio_array.reshape(-1, 2)
+                        wav = torch.from_numpy(audio_array).T
+                    else:
+                        wav = torch.from_numpy(audio_array).unsqueeze(0)
+                    
+                    return wav, sr
+        except Exception as wave_error:
+            logger.warning(f"wave fallback failed: {wave_error}")
+        
+        # Fallback: используем ffmpeg для конвертации
+        try:
+            return _convert_with_ffmpeg(audio_path)
+        except Exception as ffmpeg_error:
+            logger.error(f"ffmpeg fallback failed: {ffmpeg_error}")
+            raise Exception(f"Failed to load audio file {audio_path} with all available methods")
+
+
+def _convert_with_ffmpeg(audio_path: str) -> tuple[torch.Tensor, int]:
+    """
+    Конвертирует аудиофайл в WAV с помощью ffmpeg
+    
+    Args:
+        audio_path (str): путь к исходному аудиофайлу
+    
+    Returns:
+        tuple[torch.Tensor, int]: (аудио данные, частота дискретизации)
+    """
+    # Создаем временный WAV файл
+    with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_wav:
+        temp_wav_path = temp_wav.name
+    
+    try:
+        # Конвертируем в WAV с помощью ffmpeg
+        cmd = [
+            'ffmpeg', '-i', audio_path,
+            '-acodec', 'pcm_s16le',  # 16-bit PCM
+            '-ar', '16000',          # 16kHz sample rate
+            '-ac', '1',              # mono
+            '-y',                    # overwrite output
+            temp_wav_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            raise Exception(f"ffmpeg conversion failed: {result.stderr}")
+        
+        # Загружаем конвертированный WAV файл
+        with wave.open(temp_wav_path, 'rb') as wav_file:
+            n_frames = wav_file.getnframes()
+            audio_data = wav_file.readframes(n_frames)
+            audio_array = np.frombuffer(audio_data, dtype=np.int16)
+            audio_array = audio_array.astype(np.float32) / 32768.0  # normalize to [-1, 1]
+            wav = torch.from_numpy(audio_array).unsqueeze(0)
+            sr = 16000
+        
+        return wav, sr
+        
+    finally:
+        # Удаляем временный файл
+        if os.path.exists(temp_wav_path):
+            os.unlink(temp_wav_path)
 
 
 def transcribe_russian_audio(audio_path: str) -> str:
@@ -19,11 +131,20 @@ def transcribe_russian_audio(audio_path: str) -> str:
         str: распознанный текст
     """
     try:
-        # Загрузка и подготовка аудио
-        wav, sr = torchaudio.load(audio_path)
-        wav = torchaudio.functional.resample(wav, sr, 16000)
-        if wav.dim() > 1:
-            wav = wav.mean(dim=0)  # Стерео в моно
+        # Загрузка и подготовка аудио с улучшенной обработкой ошибок
+        wav, sr = load_audio_file(audio_path)
+        
+        # Ресемплинг если необходимо
+        if sr != 16000:
+            wav = torchaudio.functional.resample(wav, sr, 16000)
+        
+        # Конвертация стерео в моно если необходимо
+        if wav.dim() > 1 and wav.size(0) > 1:
+            wav = wav.mean(dim=0, keepdim=True)
+        
+        # Убеждаемся что размерность правильная
+        if wav.dim() == 1:
+            wav = wav.unsqueeze(0)
 
         # Загрузка модели для русского языка
         model_name = "bond005/wav2vec2-large-ru-golos"
