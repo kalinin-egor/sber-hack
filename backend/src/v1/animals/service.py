@@ -355,40 +355,43 @@ class AnimalsService:
             )
 
     async def _process_audio_file(self, file_path: str, description: Optional[str] = None) -> Dict[str, Any]:
-        """Обработка аудио файла с использованием GigaChat для анализа"""
+        """Обработка аудио файла: транскрипция + анализ с помощью GigaChat"""
         try:
-            # Симуляция распознавания речи (в реальности здесь был бы STT сервис)
-            # Для демонстрации создаем примерный текст на основе описания
-            if description:
-                simulated_transcription = f"Наблюдение за животным: {description}. Слышны звуки активности, возможно кормления или движения."
-            else:
-                simulated_transcription = f"Аудиозапись от {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}: слышны звуки животного, активность средняя, возможны звуки кормления."
+            # Импортируем функции для обработки аудио
+            from v1.animals.utils import transcribe_russian_audio, parse_text
             
-            # Анализируем содержимое с помощью GigaChat
-            gigachat_analysis = await self.gigachat_client.analyze_audio_content(
-                transcribed_text=simulated_transcription,
-                context=description
-            )
+            # 1. Транскрибируем аудио в текст
+            logger.info(f"Starting audio transcription for file: {file_path}")
+            transcribed_text = transcribe_russian_audio(file_path)
             
-            # Формируем результат
+            if transcribed_text.startswith("Ошибка при транскрибации"):
+                logger.warning(f"Transcription failed: {transcribed_text}")
+                # Используем описание как fallback
+                if description:
+                    transcribed_text = f"Наблюдение за животным: {description}"
+                else:
+                    transcribed_text = "Не удалось распознать речь из аудиозаписи"
+            
+            logger.info(f"Transcription completed: {transcribed_text[:100]}...")
+            
+            # 2. Анализируем транскрибированный текст с помощью GigaChat
+            logger.info("Starting text analysis with GigaChat")
+            analysis_data = parse_text(transcribed_text)
+            
+            # 3. Формируем результат
             return {
-                "transcribed_text": simulated_transcription,
-                "behavior_analysis": gigachat_analysis.get("behavior_state", "Не определено"),
-                "measurements": {
-                    "audio_duration_seconds": 30,
-                    "activity_level": gigachat_analysis.get("activity_level", "Не определено"),
-                    **gigachat_analysis.get("measurements", {})
-                },
-                "feeding_info": gigachat_analysis.get("feeding_details", {}),
-                "relationships": gigachat_analysis.get("relationships", {}),
-                "health_indicators": gigachat_analysis.get("health_indicators", {}),
+                "transcribed_text": transcribed_text,
+                "behavior_analysis": analysis_data.get("behavior_state", "Не определено"),
+                "measurements": analysis_data.get("measurements", {}),
+                "feeding_info": analysis_data.get("feeding_details", {}),
+                "relationships": analysis_data.get("relationships", {}),
                 "analysis_results": {
-                    "audio_quality": "хорошее",
-                    "processing_time_seconds": 5,
+                    "audio_quality": "обработано",
+                    "processing_time_seconds": 15,  # примерное время обработки
                     "confidence_score": 0.85,
                     "description": description,
-                    "gigachat_analysis": gigachat_analysis,
-                    "processing_method": "GigaChat AI Analysis"
+                    "processing_method": "Audio Transcription + GigaChat Analysis",
+                    "raw_analysis": analysis_data
                 }
             }
             
@@ -398,11 +401,7 @@ class AnimalsService:
             return {
                 "transcribed_text": f"Ошибка обработки аудио файла: {os.path.basename(file_path)}",
                 "behavior_analysis": "Не удалось проанализировать поведение",
-                "measurements": {
-                    "audio_duration_seconds": 0,
-                    "activity_level": "неопределено",
-                    "error": str(e)
-                },
+                "measurements": {},
                 "feeding_info": {},
                 "relationships": {},
                 "analysis_results": {
@@ -410,6 +409,7 @@ class AnimalsService:
                     "processing_time_seconds": 0,
                     "confidence_score": 0.0,
                     "description": description,
-                    "error": str(e)
+                    "error": str(e),
+                    "processing_method": "Error fallback"
                 }
             }
