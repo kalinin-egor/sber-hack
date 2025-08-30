@@ -169,9 +169,14 @@ class AuthService:
                 username=temp_user_data["username"],
                 password_hash=temp_user_data["password_hash"]
             )
+            
+            logger.info(f"Creating user with email: {user_data.email}")
+            logger.info(f"Password hash length: {len(user_data.password_hash)}")
 
             user_id = await uow.users.insert_one(user_data)
             await uow.commit()
+            
+            logger.info(f"User created successfully with ID: {user_id}")
 
             # Clean up Redis data
             await self.redis_client.delete_temp_user_data(data.temp_token)
