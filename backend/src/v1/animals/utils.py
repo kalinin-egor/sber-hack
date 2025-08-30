@@ -2,6 +2,8 @@ from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
 import torch
 import torchaudio
 import logging
+from gigachat import GigaChat
+
 
 logger = logging.getLogger(__name__)
 
@@ -44,3 +46,12 @@ def transcribe_russian_audio(audio_path: str) -> str:
     except Exception as e:
         logger.error(f"Error during audio transcription: {e}")
         return f"Ошибка при транскрибации аудио: {str(e)}"
+
+
+def pasre_text(text: str) -> bool:
+    with GigaChat(
+        credentials="ZmZmNTVkNWMtMGZhNS00OTE2LWE0ZTAtNzIxNGY4ZWUyNGM5OjcxNDdmZGIyLTAxZTYtNGU2Yy04NWYzLTFlMDQ4YzU4OTZlNA==",
+        verify_ssl_certs=False
+    ) as giga:
+        response = giga.chat("Привет, как дела?")
+        print(response.choices[0].message.content)

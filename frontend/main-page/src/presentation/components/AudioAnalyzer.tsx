@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Upload, Mic, Play, Square, Loader2, Volume2, PawPrint } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
 import { motion, AnimatePresence } from 'motion/react';
+import { AnimalsService } from '../../application/services/AnimalsService';
+import { useAuth } from '../stores/AuthContext';
 
 interface TranscriptionResult {
   text: string;
@@ -17,6 +19,9 @@ interface TranscriptionResult {
 }
 
 export function AudioAnalyzer({ onTranscriptionComplete }: { onTranscriptionComplete: (result: TranscriptionResult) => void }) {
+  const { state } = useAuth();
+  const animalsService = new AnimalsService();
+  
   const [isRecording, setIsRecording] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -25,7 +30,10 @@ export function AudioAnalyzer({ onTranscriptionComplete }: { onTranscriptionComp
   const [transcription, setTranscription] = useState<TranscriptionResult | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
-  const [selectedAnimal, setSelectedAnimal] = useState<string>('');
+  const [selectedAnimalId, setSelectedAnimalId] = useState<number | null>(null);
+  const [animals, setAnimals] = useState<any[]>([]);
+  const [animalTypes, setAnimalTypes] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -33,6 +41,27 @@ export function AudioAnalyzer({ onTranscriptionComplete }: { onTranscriptionComp
   const animationFrameRef = useRef<number>();
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+
+  // Загрузка животных и типов при инициализации
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [animalsData, typesData] = await Promise.all([
+          animalsService.getAllAnimals(),
+          animalsService.getAnimalTypes()
+        ]);
+        setAnimals(animalsData);
+        setAnimalTypes(typesData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        setError('Ошибка загрузки данных');
+      }
+    };
+
+    if (state.isAuthenticated) {
+      loadData();
+    }
+  }, [state.isAuthenticated]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -130,43 +159,66 @@ export function AudioAnalyzer({ onTranscriptionComplete }: { onTranscriptionComp
 
   const analyzeAudio = async () => {
     if (!audioFile && !recordedAudio) return;
-    if (!selectedAnimal) return;
+    if (!selectedAnimalId) return;
 
     setIsAnalyzing(true);
     setProgress(0);
+    setError(null);
 
-    // Симуляция прогресса анализа
-    const progressInterval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
-        }
-        return prev + 10;
-      });
-    }, 400);
+    try {
+      // Прогресс анализа
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 500);
 
-    // Симуляция 4-секундной задержки
-    await new Promise(resolve => setTimeout(resolve, 4000));
-    
-    clearInterval(progressInterval);
-    setProgress(100);
+      // Создаем файл для отправки
+      let fileToSend: File;
+      if (audioFile) {
+        fileToSend = audioFile;
+      } else if (recordedAudio) {
+        fileToSend = new File([recordedAudio], 'recording.wav', { type: 'audio/wav' });
+      } else {
+        throw new Error('Нет аудио для обработки');
+      }
 
-    // Мок результат транскрипции
-    const mockResult: TranscriptionResult = {
-      text: audioFile ? 
-        `Анализ загруженного файла "${audioFile.name}" для ${selectedAnimal}: Это пример транскрипции аудио. Система обработала ваш файл и извлекла текст с высокой точностью. Благодарим за использование нашего сервиса анализа аудио.` :
-        `Анализ записанного аудио для ${selectedAnimal}: Привет! Это тестовая запись, которая была обработана нашей системой анализа речи. Качество записи хорошее, текст распознан успешно.`,
-      confidence: 0.95,
-      timestamp: new Date().toLocaleString('ru-RU'),
-      duration: audioFile ? Math.random() * 60 + 30 : 15,
-      language: 'ru-RU',
-      animalName: selectedAnimal
-    };
+      // Отправляем на обработку
+      const result = await animalsService.processAudio(
+        fileToSend, 
+        selectedAnimalId, 
+        'Аудио анализ из веб-интерфейса'
+      );
 
-    setTranscription(mockResult);
-    onTranscriptionComplete(mockResult);
-    setIsAnalyzing(false);
+      clearInterval(progressInterval);
+      setProgress(100);
+
+      // Находим информацию о животном
+      const selectedAnimal = animals.find(a => a.id === selectedAnimalId);
+      
+      // Создаем результат для UI
+      const transcriptionResult: TranscriptionResult = {
+        text: result.behavior_state || 'Анализ завершен успешно',
+        confidence: 0.95, // API не возвращает confidence, используем фиксированное значение
+        timestamp: new Date().toLocaleString('ru-RU'),
+        duration: 15, // API не возвращает длительность, используем фиксированное значение
+        language: 'ru-RU',
+        animalName: selectedAnimal?.name || 'Неизвестное животное'
+      };
+
+      setTranscription(transcriptionResult);
+      onTranscriptionComplete(transcriptionResult);
+      
+    } catch (error) {
+      console.error('Error processing audio:', error);
+      setError(error instanceof Error ? error.message : 'Ошибка обработки аудио');
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
@@ -231,33 +283,40 @@ export function AudioAnalyzer({ onTranscriptionComplete }: { onTranscriptionComp
                     Выберите животное
                   </h3>
                 </div>
-                <Select value={selectedAnimal} onValueChange={setSelectedAnimal}>
+                <Select value={selectedAnimalId?.toString() || ''} onValueChange={(value) => setSelectedAnimalId(value ? parseInt(value) : null)}>
                   <SelectTrigger className="w-full h-12 bg-white dark:bg-gray-900 border-emerald-300 dark:border-emerald-700">
                     <SelectValue placeholder="🐾 Выберите животное для анализа..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="лев">🦁 Лев</SelectItem>
-                    <SelectItem value="тигр">🐅 Тигр</SelectItem>
-                    <SelectItem value="медведь">🐻 Медведь</SelectItem>
-                    <SelectItem value="волк">🐺 Волк</SelectItem>
-                    <SelectItem value="лиса">🦊 Лиса</SelectItem>
-                    <SelectItem value="заяц">🐰 Заяц</SelectItem>
-                    <SelectItem value="белка">🐿️ Белка</SelectItem>
-                    <SelectItem value="олень">🦌 Олень</SelectItem>
-                    <SelectItem value="слон">🐘 Слон</SelectItem>
-                    <SelectItem value="жираф">🦒 Жираф</SelectItem>
-                    <SelectItem value="зебра">🦓 Зебра</SelectItem>
-                    <SelectItem value="кот">🐱 Кот</SelectItem>
-                    <SelectItem value="собака">🐶 Собака</SelectItem>
+                    {animals.length > 0 ? (
+                      animals.map((animal) => (
+                        <SelectItem key={animal.id} value={animal.id.toString()}>
+                          🐾 {animal.name} ({animal.animal})
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="" disabled>
+                        Загрузка животных...
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
-                {!selectedAnimal && (
+                {!selectedAnimalId && (
                   <motion.p
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className="text-sm text-emerald-600 dark:text-emerald-400 mt-2"
                   >
                     ⚠️ Выбор животного обязателен для начала анализа
+                  </motion.p>
+                )}
+                {animals.length === 0 && (
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-sm text-yellow-600 dark:text-yellow-400 mt-2"
+                  >
+                    📋 Сначала создайте животных в разделе "Управление животными"
                   </motion.p>
                 )}
               </CardContent>
@@ -387,6 +446,21 @@ export function AudioAnalyzer({ onTranscriptionComplete }: { onTranscriptionComp
             className="hidden"
           />
 
+          {/* Ошибки */}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+              >
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Статус индикаторы */}
           <AnimatePresence>
             {audioFile && (
@@ -428,7 +502,7 @@ export function AudioAnalyzer({ onTranscriptionComplete }: { onTranscriptionComp
           >
             <Button 
               onClick={analyzeAudio}
-              disabled={(!audioFile && !recordedAudio) || isAnalyzing || isRecording || !selectedAnimal}
+              disabled={(!audioFile && !recordedAudio) || isAnalyzing || isRecording || !selectedAnimalId}
               className="w-full h-16 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
               size="lg"
             >
@@ -440,7 +514,7 @@ export function AudioAnalyzer({ onTranscriptionComplete }: { onTranscriptionComp
               ) : (
                 <>
                   <Play className="h-5 w-5 mr-3" />
-                  {!selectedAnimal ? 'Выберите животное' : 'Начать анализ'}
+                  {!selectedAnimalId ? 'Выберите животное' : 'Начать анализ'}
                 </>
               )}
             </Button>

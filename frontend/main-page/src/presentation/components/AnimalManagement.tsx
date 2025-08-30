@@ -7,14 +7,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Alert, AlertDescription } from './ui/alert';
 import { PawPrint, Plus, Trash2, Eye, Users, FileText, Search, Calendar, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { AnimalsService } from '../../application/services/AnimalsService';
+import { useAuth } from '../stores/AuthContext';
 
 interface Animal {
-  id: string;
+  id: number;
   name: string;
-  species: string;
-  emoji: string;
-  createdAt: string;
-  transcriptionsCount: number;
+  animal: string; // тип животного из API
+  transcriptionsCount?: number;
+  createdAt?: string;
   lastActivity?: string;
 }
 
@@ -32,34 +33,55 @@ interface AnimalManagementProps {
 }
 
 export function AnimalManagement({ transcriptionData }: AnimalManagementProps) {
+  const { state } = useAuth();
+  const animalsService = new AnimalsService();
+  
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [selectedAnimal, setSelectedAnimal] = useState<Animal | null>(null);
   const [newAnimalName, setNewAnimalName] = useState('');
-  const [newAnimalSpecies, setNewAnimalSpecies] = useState('');
-  const [newAnimalEmoji, setNewAnimalEmoji] = useState('🐾');
+  const [newAnimalType, setNewAnimalType] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [animalTypes, setAnimalTypes] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Инициализируем животных на основе данных транскрипций
+  // Загружаем животных и типы из API
   useEffect(() => {
-    const animalNames = [...new Set(transcriptionData.map(t => t.animalName))];
-    const initialAnimals: Animal[] = animalNames.map((name, index) => {
-      const animalTranscriptions = transcriptionData.filter(t => t.animalName === name);
-      const lastTranscription = animalTranscriptions[animalTranscriptions.length - 1];
+    const loadData = async () => {
+      if (!state.isAuthenticated) return;
       
-      return {
-        id: `animal-${index}`,
-        name,
-        species: getSpeciesFromName(name),
-        emoji: getEmojiFromName(name),
-        createdAt: new Date().toLocaleDateString('ru-RU'),
-        transcriptionsCount: animalTranscriptions.length,
-        lastActivity: lastTranscription?.timestamp
-      };
-    });
-    
-    setAnimals(initialAnimals);
-  }, [transcriptionData]);
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const [animalsData, typesData] = await Promise.all([
+          animalsService.getAllAnimals(),
+          animalsService.getAnimalTypes()
+        ]);
+        
+        // Добавляем информацию о транскрипциях
+        const animalsWithTranscriptions = animalsData.map(animal => ({
+          ...animal,
+          transcriptionsCount: transcriptionData.filter(t => t.animalName === animal.name).length,
+          createdAt: new Date().toLocaleDateString('ru-RU'),
+          lastActivity: transcriptionData
+            .filter(t => t.animalName === animal.name)
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]?.timestamp
+        }));
+        
+        setAnimals(animalsWithTranscriptions);
+        setAnimalTypes(typesData);
+      } catch (error) {
+        console.error('Error loading animals:', error);
+        setError('Ошибка загрузки данных о животных');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [state.isAuthenticated, transcriptionData]);
 
   const getSpeciesFromName = (name: string): string => {
     const speciesMap: { [key: string]: string } = {
@@ -99,29 +121,51 @@ export function AnimalManagement({ transcriptionData }: AnimalManagementProps) {
     return emojiMap[name.toLowerCase()] || '🐾';
   };
 
-  const createAnimal = () => {
-    if (!newAnimalName.trim()) return;
+  const createAnimal = async () => {
+    if (!newAnimalName.trim() || !newAnimalType.trim()) return;
     
-    const newAnimal: Animal = {
-      id: `animal-${Date.now()}`,
-      name: newAnimalName.trim(),
-      species: newAnimalSpecies.trim() || getSpeciesFromName(newAnimalName.trim()),
-      emoji: newAnimalEmoji,
-      createdAt: new Date().toLocaleDateString('ru-RU'),
-      transcriptionsCount: 0
-    };
+    setIsLoading(true);
+    setError(null);
     
-    setAnimals(prev => [...prev, newAnimal]);
-    setNewAnimalName('');
-    setNewAnimalSpecies('');
-    setNewAnimalEmoji('🐾');
-    setIsCreateDialogOpen(false);
+    try {
+      const newAnimal = await animalsService.createAnimal({
+        name: newAnimalName.trim(),
+        animal: newAnimalType.trim()
+      });
+      
+      const animalWithExtras = {
+        ...newAnimal,
+        transcriptionsCount: 0,
+        createdAt: new Date().toLocaleDateString('ru-RU'),
+      };
+      
+      setAnimals(prev => [...prev, animalWithExtras]);
+      setNewAnimalName('');
+      setNewAnimalType('');
+      setIsCreateDialogOpen(false);
+    } catch (error) {
+      console.error('Error creating animal:', error);
+      setError('Ошибка создания животного');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const deleteAnimal = (animalId: string) => {
-    setAnimals(prev => prev.filter(animal => animal.id !== animalId));
-    if (selectedAnimal?.id === animalId) {
-      setSelectedAnimal(null);
+  const deleteAnimal = async (animalId: number) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      await animalsService.deleteAnimal(animalId);
+      setAnimals(prev => prev.filter(animal => animal.id !== animalId));
+      if (selectedAnimal?.id === animalId) {
+        setSelectedAnimal(null);
+      }
+    } catch (error) {
+      console.error('Error deleting animal:', error);
+      setError('Ошибка удаления животного');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -131,7 +175,7 @@ export function AnimalManagement({ transcriptionData }: AnimalManagementProps) {
 
   const filteredAnimals = animals.filter(animal =>
     animal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    animal.species.toLowerCase().includes(searchTerm.toLowerCase())
+    animal.animal.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -184,6 +228,11 @@ export function AnimalManagement({ transcriptionData }: AnimalManagementProps) {
                   </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
                   <div>
                     <label className="text-sm font-medium">Имя животного</label>
                     <Input
@@ -191,33 +240,31 @@ export function AnimalManagement({ transcriptionData }: AnimalManagementProps) {
                       onChange={(e) => setNewAnimalName(e.target.value)}
                       placeholder="Введите имя..."
                       className="mt-1"
+                      disabled={isLoading}
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Вид (необязательно)</label>
+                    <label className="text-sm font-medium">Тип животного</label>
                     <Input
-                      value={newAnimalSpecies}
-                      onChange={(e) => setNewAnimalSpecies(e.target.value)}
-                      placeholder="Введите вид..."
+                      value={newAnimalType}
+                      onChange={(e) => setNewAnimalType(e.target.value)}
+                      placeholder="Например: корова, свинья, курица..."
                       className="mt-1"
+                      disabled={isLoading}
                     />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Эмодзи</label>
-                    <Input
-                      value={newAnimalEmoji}
-                      onChange={(e) => setNewAnimalEmoji(e.target.value)}
-                      placeholder="🐾"
-                      className="mt-1"
-                      maxLength={2}
-                    />
+                    {animalTypes.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Доступные типы: {animalTypes.slice(0, 3).join(', ')}
+                        {animalTypes.length > 3 && '...'}
+                      </p>
+                    )}
                   </div>
                   <Button 
                     onClick={createAnimal} 
                     className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
-                    disabled={!newAnimalName.trim()}
+                    disabled={!newAnimalName.trim() || !newAnimalType.trim() || isLoading}
                   >
-                    Создать
+                    {isLoading ? 'Создание...' : 'Создать'}
                   </Button>
                 </div>
               </DialogContent>
@@ -287,7 +334,7 @@ export function AnimalManagement({ transcriptionData }: AnimalManagementProps) {
                   transition={{ duration: 2, repeat: Infinity, delay: 0.6 }}
                   className="text-2xl font-bold text-orange-600 dark:text-orange-400"
                 >
-                  {new Set(animals.map(a => a.species)).size}
+                  {new Set(animals.map(a => a.animal)).size}
                 </motion.div>
                 <div className="text-sm text-orange-800 dark:text-orange-200 flex items-center justify-center gap-1">
                   <PawPrint className="h-4 w-4" />
@@ -366,11 +413,11 @@ export function AnimalManagement({ transcriptionData }: AnimalManagementProps) {
                                   transition={{ duration: 2, repeat: Infinity, delay: index * 0.2 }}
                                   className="text-2xl"
                                 >
-                                  {animal.emoji}
+                                  {getEmojiFromName(animal.animal)}
                                 </motion.span>
                                 <div>
                                   <h4 className="font-semibold">{animal.name}</h4>
-                                  <p className="text-sm text-muted-foreground">{animal.species}</p>
+                                  <p className="text-sm text-muted-foreground">{animal.animal}</p>
                                 </div>
                               </div>
                               <div className="flex gap-2">
@@ -451,14 +498,14 @@ export function AnimalManagement({ transcriptionData }: AnimalManagementProps) {
                             transition={{ duration: 2, repeat: Infinity }}
                             className="text-3xl"
                           >
-                            {selectedAnimal.emoji}
+                            {getEmojiFromName(selectedAnimal.animal)}
                           </motion.span>
                           <div>
                             <h3 className="text-emerald-800 dark:text-emerald-200">
                               {selectedAnimal.name}
                             </h3>
                             <p className="text-sm text-emerald-600 dark:text-emerald-400">
-                              {selectedAnimal.species}
+                              {selectedAnimal.animal}
                             </p>
                           </div>
                         </CardTitle>
@@ -473,7 +520,7 @@ export function AnimalManagement({ transcriptionData }: AnimalManagementProps) {
                           </div>
                           <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border text-center">
                             <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                              {selectedAnimal.createdAt}
+                              {selectedAnimal.createdAt || 'Сегодня'}
                             </div>
                             <div className="text-xs text-muted-foreground">Создан</div>
                           </div>
