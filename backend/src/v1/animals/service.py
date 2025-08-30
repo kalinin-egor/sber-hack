@@ -10,7 +10,6 @@ from fastapi import HTTPException, UploadFile, status
 from dependency_injector.wiring import Provide
 
 from v1.animals.config import AnimalsServiceConfig
-from v1.animals.utils import create_gigachat_client
 from db.postgres.unit_of_work import UnitOfWork
 from common_schemas import (
     AnimalCreate, 
@@ -40,8 +39,6 @@ class AnimalsService:
         self.config = config
         # Создаем директорию для временных аудио файлов, если она не существует
         os.makedirs(self.config.TEMP_AUDIO_PATH, exist_ok=True)
-        # Инициализируем клиент GigaChat
-        self.gigachat_client = create_gigachat_client()
         logger.info(f"AnimalsService initialized with config: {config}")
 
     async def create_animal(self, data: AnimalCreateRequest) -> AnimalResponse:

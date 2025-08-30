@@ -66,3 +66,4 @@ python-multipart
 transformers
 torch
 torchaudio
+gigachat
