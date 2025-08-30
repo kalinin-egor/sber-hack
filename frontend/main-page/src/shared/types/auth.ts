@@ -25,20 +25,21 @@ export interface ResponseSchema<T = any> {
 export interface AuthTokens {
   access_token: string;
   refresh_token: string;
-  token_type: string;
-  expires_in: number;
+  token_type?: string;
+  expires_in?: number;
 }
 
 export interface UserProfile {
-  id: string;
+  id: number | string;
   email: string;
   username: string;
-  created_at: string;
-  is_verified: boolean;
+  created_at?: string;
+  is_verified?: boolean;
 }
 
 export interface LoginResponse {
-  tokens: AuthTokens;
+  access_token: string;
+  refresh_token: string;
   user: UserProfile;
 }
 
