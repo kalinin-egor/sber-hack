@@ -90,28 +90,39 @@ export function AuthProvider({ children }: AuthProviderProps) {
       dispatch({ type: 'SET_LOADING', payload: true });
       
       try {
+        console.log('Initializing auth...');
         const tokens = authService.getTokens();
+        console.log('Retrieved tokens:', tokens);
+        
         if (tokens && authService.isTokenValid(tokens.access_token)) {
+          console.log('Tokens are valid, checking user profile...');
           // Попробуем получить данные пользователя из localStorage
           const savedUser = localStorage.getItem('user_profile');
+          console.log('Saved user profile:', savedUser);
+          
           if (savedUser) {
             const user = JSON.parse(savedUser);
+            console.log('Parsed user:', user);
             dispatch({ 
               type: 'LOGIN_SUCCESS', 
               payload: { tokens, user } 
             });
+            console.log('Auth initialized successfully');
           } else {
+            console.log('No user profile found, clearing tokens');
             // Если нет данных пользователя, очищаем токены
             authService.clearTokens();
             dispatch({ type: 'LOGOUT' });
           }
         } else {
+          console.log('Tokens are invalid or missing, clearing auth');
           // Токены недействительны, очищаем
           authService.clearTokens();
           localStorage.removeItem('user_profile');
           dispatch({ type: 'LOGOUT' });
         }
       } catch (error) {
+        console.error('Error initializing auth:', error);
         // При ошибке очищаем все данные
         authService.clearTokens();
         localStorage.removeItem('user_profile');
@@ -138,10 +149,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
         token_type: 'Bearer',
         expires_in: 3600
       };
+      
+      console.log('Saving tokens:', tokens);
       authService.saveTokens(tokens);
       
       // Сохраняем данные пользователя в localStorage
+      console.log('Saving user profile:', loginResponse.user);
       localStorage.setItem('user_profile', JSON.stringify(loginResponse.user));
+      
+      // Проверяем, что данные сохранились
+      const savedTokens = authService.getTokens();
+      const savedUser = localStorage.getItem('user_profile');
+      console.log('Saved tokens:', savedTokens);
+      console.log('Saved user:', savedUser);
       
       dispatch({ type: 'LOGIN_SUCCESS', payload: { 
         tokens, 

@@ -153,15 +153,31 @@ export class AuthService {
    * Сохранение токенов в localStorage
    */
   saveTokens(tokens: AuthTokens): void {
-    localStorage.setItem('auth_tokens', JSON.stringify(tokens));
+    console.log('AuthService: Saving tokens to localStorage:', tokens);
+    try {
+      localStorage.setItem('auth_tokens', JSON.stringify(tokens));
+      console.log('AuthService: Tokens saved successfully');
+      
+      // Проверяем, что токены действительно сохранились
+      const saved = localStorage.getItem('auth_tokens');
+      console.log('AuthService: Verification - saved tokens:', saved);
+    } catch (error) {
+      console.error('AuthService: Error saving tokens:', error);
+    }
   }
 
   /**
    * Получение токенов из localStorage
    */
   getTokens(): AuthTokens | null {
-    const tokens = localStorage.getItem('auth_tokens');
-    return tokens ? JSON.parse(tokens) : null;
+    try {
+      const tokens = localStorage.getItem('auth_tokens');
+      console.log('AuthService: Getting tokens from localStorage:', tokens);
+      return tokens ? JSON.parse(tokens) : null;
+    } catch (error) {
+      console.error('AuthService: Error getting tokens:', error);
+      return null;
+    }
   }
 
   /**
@@ -176,10 +192,17 @@ export class AuthService {
    */
   isTokenValid(token: string): boolean {
     try {
+      console.log('Checking token validity:', token.substring(0, 20) + '...');
       const payload = JSON.parse(atob(token.split('.')[1]));
       const now = Date.now() / 1000;
-      return payload.exp > now;
-    } catch {
+      const isValid = payload.exp > now;
+      console.log('Token payload:', payload);
+      console.log('Token expires at:', new Date(payload.exp * 1000));
+      console.log('Current time:', new Date(now * 1000));
+      console.log('Token is valid:', isValid);
+      return isValid;
+    } catch (error) {
+      console.error('Error checking token validity:', error);
       return false;
     }
   }
