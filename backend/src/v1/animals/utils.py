@@ -26,6 +26,7 @@ def load_audio_file(audio_path: str) -> tuple[torch.Tensor, int]:
     try:
         # Попытка загрузки через torchaudio
         wav, sr = torchaudio.load(audio_path)
+        logger.info(f"torchaudio.load successful: shape={wav.shape}, sr={sr}")
         return wav, sr
     except Exception as e:
         logger.warning(f"torchaudio.load failed: {e}")
@@ -54,19 +55,21 @@ def load_audio_file(audio_path: str) -> tuple[torch.Tensor, int]:
                     # Нормализуем
                     audio_array = audio_array.astype(np.float32) / (2**(sample_width*8-1))
                     
-                    # Конвертируем в torch tensor
+                    # Конвертируем в torch tensor с правильной размерностью
                     if n_channels == 2:
                         audio_array = audio_array.reshape(-1, 2)
-                        wav = torch.from_numpy(audio_array).T
+                        wav = torch.from_numpy(audio_array).T  # [2, time]
                     else:
-                        wav = torch.from_numpy(audio_array).unsqueeze(0)
+                        wav = torch.from_numpy(audio_array).unsqueeze(0)  # [1, time]
                     
+                    logger.info(f"wave fallback successful: shape={wav.shape}, sr={sr}")
                     return wav, sr
         except Exception as wave_error:
             logger.warning(f"wave fallback failed: {wave_error}")
         
         # Fallback: используем ffmpeg для конвертации
         try:
+            logger.info(f"Attempting ffmpeg conversion for file: {audio_path}")
             return _convert_with_ffmpeg(audio_path)
         except Exception as ffmpeg_error:
             logger.error(f"ffmpeg fallback failed: {ffmpeg_error}")
@@ -166,10 +169,20 @@ def transcribe_russian_audio(audio_path: str) -> str:
         file_size = os.path.getsize(audio_path)
         logger.info(f"Audio file size: {file_size} bytes")
         
+        if file_size == 0:
+            raise Exception("Audio file is empty")
+        
         # Загрузка и подготовка аудио с улучшенной обработкой ошибок
         wav, sr = load_audio_file(audio_path)
         
         logger.info(f"Audio loaded successfully: shape={wav.shape}, sample_rate={sr}")
+        
+        # Проверяем минимальную длительность (например, 0.5 секунды)
+        duration = wav.shape[-1] / sr
+        if duration < 0.5:
+            raise Exception(f"Audio file too short: {duration:.2f} seconds (minimum 0.5 seconds)")
+        
+        logger.info(f"Audio duration: {duration:.2f} seconds")
         
         # Ресемплинг если необходимо
         if sr != 16000:
