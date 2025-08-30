@@ -44,42 +44,6 @@ async def login_user(
     return ResponseSchema(exception=0, data=tokens)
 
 
-@router.get("/me", response_model=ResponseSchema)
-@inject
-async def get_user_profile(
-    current_user: dict = Depends(get_current_user),
-    auth_service: AuthService = Depends(Provide[AuthContainer.auth_service]),
-) -> ResponseSchema:
-    """Получение профиля текущего пользователя"""
-    profile = await auth_service.get_user_profile(current_user["user_id"])
-    return ResponseSchema(exception=0, data=profile)
-
-
-@router.put("/me/username", response_model=ResponseSchema)
-@inject
-async def update_username(
-    data: UpdateUsernameSchema,
-    current_user: dict = Depends(get_current_user),
-    auth_service: AuthService = Depends(Provide[AuthContainer.auth_service]),
-) -> ResponseSchema:
-    """Изменить username текущего пользователя"""
-    result = await auth_service.update_username(int(current_user["user_id"]), data.username)
-    return ResponseSchema(exception=0, data=result)
-
-
-@router.put("/me/usdt-wallet", response_model=ResponseSchema)
-@inject
-async def update_usdt_wallet(
-    data: UpdateUsdtWalletSchema,
-    current_user: dict = Depends(get_current_user),
-    auth_service: AuthService = Depends(Provide[AuthContainer.auth_service]),
-) -> ResponseSchema:
-    """Обновление USDT кошелька пользователя"""
-    result = await auth_service.update_usdt_wallet(int(current_user["user_id"]), data.usdt_wallet)
-    return ResponseSchema(exception=0, data=result)
-
-
-# Legacy endpoints for backward compatibility
 @router.post("/refresh-token")
 @inject
 async def refresh_token(

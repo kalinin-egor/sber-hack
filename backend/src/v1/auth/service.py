@@ -1,7 +1,7 @@
 import logging
 import random
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Literal, Optional
 
 import email_validator
 from dependency_injector.wiring import Provide
@@ -20,7 +20,7 @@ from v1.auth.config import AuthServiceConfig
 from db.postgres.unit_of_work import UnitOfWork
 from db.redis.redis_client import RedisClient
 from common_schemas import ResponseSchema, TokenSchema, UserCreate, UserSchema
-from v1.auth.dependencies.redis_container import RedisContainer
+from db.redis.dependencies import RedisContainer
 from v1.auth.exceptions import (
     EmailNotValidError,
     PhoneNotCorrectError,
@@ -49,7 +49,8 @@ class AuthService:
         self.config = config
         self.sms_worker = SMSWorker(config)
         self.email_worker = Emailer(config)
-        self.redis_client = redis_client
+        # If DI did not supply a RedisClient, create one from config
+        self.redis_client = redis_client or RedisClient()
         print(f"=== AuthService Initialized ===")
         print(f"Config SENDER_EMAIL: {self.config.SENDER_EMAIL}")
         print(f"Config EMAIL_PASSWORD: {'***SET***' if self.config.EMAIL_PASSWORD else '***NOT SET***'}")
@@ -214,10 +215,6 @@ class AuthService:
             user_id = user.id
             user_email = user.email
             user_username = user.username
-            user_balance = user.balance
-            user_is_active = user.is_active
-            user_created_at = user.created_at.isoformat() if user.created_at else None
-
             # Generate tokens
             tokens = await self.generate_tokens(str(user.id))
 
@@ -232,9 +229,6 @@ class AuthService:
                     "id": user_id,
                     "email": user_email,
                     "username": user_username,
-                    "balance": user_balance,
-                    "is_active": user_is_active,
-                    "created_at": user_created_at,
                 }
             }
 
@@ -664,12 +658,9 @@ class AuthService:
             
             # Создаем экземпляр AuthService для получения полного профиля
             from v1.auth.config import AuthServiceConfig
-            from v1.auth.dependencies.redis_container import RedisContainer
-            from dependency_injector.wiring import Provide
             
             config = AuthServiceConfig()
-            redis_client = Provide[RedisContainer.redis_client]
-            auth_service = AuthService(config, redis_client)
+            auth_service = AuthService(config)
             
             # Получаем полный профиль пользователя
             profile_data = await auth_service.get_user_profile(str(user_data["user_id"]))

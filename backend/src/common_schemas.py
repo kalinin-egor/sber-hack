@@ -45,6 +45,8 @@ class UserSchema(BaseModel):
     username: str
     password_hash: str
     registered_at: Optional[datetime] = None
+    refresh_token: Optional[str] = None
+
     updated_at: Optional[datetime] = None
 
 

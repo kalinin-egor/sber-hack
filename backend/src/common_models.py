@@ -23,6 +23,8 @@ class User(Base):
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    refresh_token: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True)
+
     registered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.utcnow
     )
