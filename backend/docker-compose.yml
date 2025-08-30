@@ -1,0 +1,44 @@
+version: '3.8'
+services:
+  app:
+    container_name: vc_finder
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8074:8074"
+    depends_on:
+      - vc_postgres_container
+      - redis
+
+  vc_postgres_container:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: kalinin_egor
+      POSTGRES_PASSWORD: 1234567890
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    mem_limit: 5g
+    cpus: 0.5
+
+  redis:
+    container_name: vc_redis_container
+    image: redis:latest
+    ports:
+      - "6377:6389"  # Обычно Redis слушает на 6379
+    volumes:
+      - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: "256M"
+        reservations:
+          memory: "128M"
+
+volumes:
+  postgres_data:
+  redis_data:
