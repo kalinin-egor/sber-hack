@@ -210,4 +210,21 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, hashed_password: str) -> bool:
     """Проверка пароля"""
-    return hash_password(password) == hashed_password
+    logger.info(f"Verifying password...")
+    logger.info(f"Input password: {password[:3]}*** (length: {len(password)})")
+    logger.info(f"Stored hash: {hashed_password[:10]}*** (length: {len(hashed_password) if hashed_password else 0})")
+    
+    # Проверяем, что хеш не пустой
+    if not hashed_password:
+        logger.warning("Stored password hash is empty!")
+        return False
+    
+    # Вычисляем хеш входящего пароля
+    input_hash = hash_password(password)
+    logger.info(f"Input hash: {input_hash[:10]}*** (length: {len(input_hash)})")
+    
+    # Сравниваем хеши
+    result = input_hash == hashed_password
+    logger.info(f"Password verification result: {result}")
+    
+    return result

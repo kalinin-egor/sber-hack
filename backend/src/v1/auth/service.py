@@ -201,12 +201,21 @@ class AuthService:
             # Find user by email
             user = await uow.users.select_user_by_email(data.email)
             if not user:
+                logger.warning(f"Login failed: User not found for email {data.email}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
                 )
 
+            logger.info(f"User found: {user.email}, checking password...")
+            
             # Verify password
-            if not verify_password(data.password, user.password_hash):
+            password_valid = verify_password(data.password, user.password_hash)
+            logger.info(f"Password verification result: {password_valid}")
+            logger.info(f"Input password length: {len(data.password)}")
+            logger.info(f"Stored hash length: {len(user.password_hash) if user.password_hash else 0}")
+            
+            if not password_valid:
+                logger.warning(f"Login failed: Invalid password for user {data.email}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
                 )
