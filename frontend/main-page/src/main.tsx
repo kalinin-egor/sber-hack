@@ -13,7 +13,7 @@ function AuthenticatedApp() {
 
   return (
     <AnimatePresence mode="wait">
-      {state.isAuthenticated ? (
+      {state.isAuthenticated ? (o
         <motion.div
           key="app"
           initial={{ opacity: 0, x: 100 }}
