@@ -101,7 +101,13 @@ export class AuthService {
 
     // Если данные в формате ResponseSchema
     if (result.data) {
-      return result.data;
+      // Преобразуем данные в ожидаемый формат LoginResponse
+      const loginData = result.data;
+      return {
+        access_token: loginData.access_token,
+        refresh_token: loginData.refresh_token,
+        user: loginData.user
+      };
     }
     
     // Если данные напрямую в ответе

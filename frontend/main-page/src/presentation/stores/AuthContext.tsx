@@ -101,10 +101,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const loginResponse = await authService.login({ email, password });
       
-      // Сохраняем токены
-      authService.saveTokens(loginResponse.tokens);
+      // Сохраняем токены в новом формате
+      const tokens = {
+        access_token: loginResponse.access_token,
+        refresh_token: loginResponse.refresh_token,
+        token_type: 'Bearer',
+        expires_in: 3600
+      };
+      authService.saveTokens(tokens);
       
-      dispatch({ type: 'LOGIN_SUCCESS', payload: loginResponse });
+      dispatch({ type: 'LOGIN_SUCCESS', payload: { 
+        tokens, 
+        user: loginResponse.user 
+      }});
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Ошибка входа';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
