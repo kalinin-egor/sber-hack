@@ -52,5 +52,5 @@ services:
           memory: "128M"
 
 volumes:
-  postgres_data:
-  redis_data:
+  sber_postgres_data:
+  sber_redis_data:
