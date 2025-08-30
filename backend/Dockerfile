@@ -21,4 +21,9 @@ COPY . .
 
 EXPOSE 8075
 
+# Увеличиваем лимиты для обработки больших файлов
+ENV PYTHONPATH=/src
+ENV MAX_WORKERS=4
+ENV WORKER_CLASS=uvicorn.workers.UvicornWorker
+
 CMD ["python", "src/main.py"]

@@ -6,16 +6,16 @@ from typing import Optional
 class AnimalsServiceConfig(BaseSettings):
     """Конфигурация для сервиса животных"""
     
-    # Максимальный размер аудио файла в байтах (по умолчанию 50MB)
-    MAX_AUDIO_FILE_SIZE: int = 50 * 1024 * 1024
+    # Максимальный размер аудио файла в байтах (по умолчанию 100MB)
+    MAX_AUDIO_FILE_SIZE: int = 100 * 1024 * 1024
     
     # Поддерживаемые форматы аудио файлов
     SUPPORTED_AUDIO_FORMATS: list = [
         "mp3", "wav", "m4a", "flac", "aac", "ogg", "wma", "webm", "opus"
     ]
     
-    # Максимальная длительность аудио в секундах (по умолчанию 10 минут)
-    MAX_AUDIO_DURATION: int = 600
+    # Максимальная длительность аудио в секундах (по умолчанию 30 минут)
+    MAX_AUDIO_DURATION: int = 1800
     
     # Путь для временного сохранения аудио файлов
     TEMP_AUDIO_PATH: str = "/tmp/audio_files"
@@ -28,7 +28,7 @@ class AnimalsServiceConfig(BaseSettings):
     AUDIO_CHANNELS: int = 1  # Моно аудио
     
     # Таймауты для обработки
-    AUDIO_PROCESSING_TIMEOUT: int = 300  # 5 минут на обработку
+    AUDIO_PROCESSING_TIMEOUT: int = 600  # 10 минут на обработку
     
     model_config = ConfigDict(
         env_file=".env",

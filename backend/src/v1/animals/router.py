@@ -107,9 +107,9 @@ async def create_transcription(
 @router.post("/audio/process", response_model=ResponseSchema)
 @inject
 async def process_audio(
-    audio_file: UploadFile = File(..., description="Аудио файл для обработки"),
+    audio_file: UploadFile = File(..., description="Аудио файл для обработки (поддерживаемые форматы: mp3, wav, m4a, flac, aac, ogg, wma, webm, opus)"),
     animal_id: int = Form(..., description="ID животного, к которому относится аудио"),
-    description: Optional[str] = Form(None, description="Описание аудиозаписи"),
+    description: Optional[str] = Form(None, description="Описание аудиозаписи (опционально)"),
     animals_service: AnimalsService = Depends(Provide[AnimalsContainer.animals_service]),
 ) -> ResponseSchema:
     """
@@ -121,6 +121,10 @@ async def process_audio(
     - Извлечение данных об измерениях
     - Информация о кормлении
     - Взаимоотношения с другими животными
+    
+    **Поддерживаемые форматы**: mp3, wav, m4a, flac, aac, ogg, wma, webm, opus
+    **Максимальный размер**: 100MB
+    **Максимальная длительность**: 30 минут
     """
     # Создаем объект запроса
     processing_request = AudioProcessingRequest(

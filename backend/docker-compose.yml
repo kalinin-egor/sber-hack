@@ -21,6 +21,13 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: root
       REDIS_DB: 0
+      # Настройки для увеличения лимитов на файлы
+      ANIMALS_MAX_AUDIO_FILE_SIZE: 104857600  # 100MB в байтах
+      ANIMALS_MAX_AUDIO_DURATION: 1800  # 30 минут
+      ANIMALS_AUDIO_PROCESSING_TIMEOUT: 600  # 10 минут
+    # Увеличиваем лимиты ресурсов для обработки больших файлов
+    mem_limit: 2g
+    cpus: 1.0
 
   postgres:
     image: postgres:15

@@ -29,6 +29,7 @@ greenlet==3.1.1
 h11==0.14.0
 httpcore==1.0.6
 httpx==0.27.2
+httptools
 idna==3.10
 jiter==0.6.1
 jwt==1.3.1
@@ -60,7 +61,7 @@ tqdm==4.66.5
 typing_extensions==4.12.2
 tzdata==2024.2
 tzlocal==5.2
-uvicorn==0.32.0
+uvicorn[standard]
 yarl==1.15.4
 python-multipart
 transformers
