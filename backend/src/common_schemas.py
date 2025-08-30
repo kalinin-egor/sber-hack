@@ -602,3 +602,58 @@ class SearchSchema(SearchInDBBase):
     # Если необходимо добавить вложенные данные (например, связи с User, DecisionMaker),
     # их можно добавить здесь как поля с соответствующими схемами.
     model_config = ConfigDict(from_attributes=True)
+
+
+# Animal schemas
+class AnimalSchema(BaseSchema):
+    id: Optional[int] = None
+    animal: str  # Тип животного (например, "корова", "свинья", "курица")
+    name: str    # Имя животного
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AnimalCreate(BaseSchema):
+    animal: str
+    name: str
+
+
+class AnimalUpdate(BaseSchema):
+    animal: Optional[str] = None
+    name: Optional[str] = None
+
+
+# Animal Transcription schemas
+class AnimalTranscriptionSchema(BaseSchema):
+    id: Optional[int] = None
+    animal_id: int
+    behavior_state: Optional[str] = None  # Поведение/состояние с историей
+    measurements: Optional[Dict[str, Any]] = None  # Измерения (вес, температура и т.д.)
+    feeding_details: Optional[Dict[str, Any]] = None  # Детали кормления
+    relationships: Optional[Dict[str, Any]] = None  # Взаимоотношения с другими животными
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AnimalTranscriptionCreate(BaseSchema):
+    animal_id: int
+    behavior_state: Optional[str] = None
+    measurements: Optional[Dict[str, Any]] = None
+    feeding_details: Optional[Dict[str, Any]] = None
+    relationships: Optional[Dict[str, Any]] = None
+
+
+class AnimalTranscriptionUpdate(BaseSchema):
+    behavior_state: Optional[str] = None
+    measurements: Optional[Dict[str, Any]] = None
+    feeding_details: Optional[Dict[str, Any]] = None
+    relationships: Optional[Dict[str, Any]] = None
+
+
+# Схема животного с транскрипциями
+class AnimalWithTranscriptionsSchema(AnimalSchema):
+    transcriptions: List[AnimalTranscriptionSchema] = []
