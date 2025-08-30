@@ -86,6 +86,7 @@ class AuthService:
         
         # Hash password
         hashed_password = hash_password(data.password)
+        logger.info(f"Registration: Password hashed successfully, hash length: {len(hashed_password)}")
         
         # Prepare user data for temporary storage
         user_data = {
