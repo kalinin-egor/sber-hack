@@ -16,8 +16,8 @@ class FastAPIConfig(BaseSettings):
         ]
     )
 
-    FASTAPI_HOST: str = Field(default="127.0.0.1")
-    FASTAPI_PORT: int = Field(default=3010)
+    FASTAPI_HOST: str = Field(default="0.0.0.0")
+    FASTAPI_PORT: int = Field(default="8075")
 
     model_config = SettingsConfigDict(env_file=Path(__file__).parent.parent.joinpath(".env"), extra="ignore")
 
