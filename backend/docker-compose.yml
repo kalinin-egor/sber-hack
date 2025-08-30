@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8074:8074"
+      - "8075:8075"
     depends_on:
       - postgres
       - redis

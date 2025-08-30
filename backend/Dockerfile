@@ -12,6 +12,6 @@ RUN pip install --no-cache-dir -r /src/requirements.txt
 
 COPY . .
 
-EXPOSE 8074
+EXPOSE 8075
 
 CMD ["python", "src/main.py"]
