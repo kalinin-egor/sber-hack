@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   app:
     container_name: hack-backend
@@ -32,17 +31,17 @@ services:
       POSTGRES_PASSWORD: 1234567890
       POSTGRES_DB: sber
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - sber_postgres_data:/var/lib/postgresql/data
     mem_limit: 5g
     cpus: 0.5
 
   redis:
-    container_name: redis
+    container_name: sber_redis
     image: redis:latest
     ports:
       - "6376:6379"  # Обычно Redis слушает на 6379
     volumes:
-      - redis_data:/data
+      - sber_redis_data:/data
     deploy:
       resources:
         limits:
