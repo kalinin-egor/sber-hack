@@ -6,7 +6,7 @@ import { AuthService } from '../../application/services/AuthService';
 type AuthAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'LOGIN_SUCCESS'; payload: LoginResponse }
+  | { type: 'LOGIN_SUCCESS'; payload: { user: UserProfile; tokens: AuthTokens } }
   | { type: 'LOGOUT' }
   | { type: 'UPDATE_TOKENS'; payload: AuthTokens }
   | { type: 'CLEAR_ERROR' };
