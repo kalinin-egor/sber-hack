@@ -46,10 +46,13 @@ export function AudioAnalyzer({ onTranscriptionComplete }: { onTranscriptionComp
   useEffect(() => {
     const loadData = async () => {
       try {
+        console.log('Loading animals and types...');
         const [animalsData, typesData] = await Promise.all([
           animalsService.getAllAnimals(),
           animalsService.getAnimalTypes()
         ]);
+        console.log('Animals loaded:', animalsData);
+        console.log('Types loaded:', typesData);
         setAnimals(animalsData);
         setAnimalTypes(typesData);
       } catch (error) {
@@ -314,13 +317,22 @@ export function AudioAnalyzer({ onTranscriptionComplete }: { onTranscriptionComp
                     ⚠️ Выбор животного обязателен для начала анализа
                   </motion.p>
                 )}
-                {animals.length === 0 && (
+                {animals.length === 0 && !error && (
                   <motion.p
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className="text-sm text-yellow-600 dark:text-yellow-400 mt-2"
                   >
                     📋 Сначала создайте животных в разделе "Управление животными"
+                  </motion.p>
+                )}
+                {animalTypes.length > 0 && (
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-xs text-muted-foreground mt-2"
+                  >
+                    Доступные типы: {animalTypes.join(', ')}
                   </motion.p>
                 )}
               </CardContent>

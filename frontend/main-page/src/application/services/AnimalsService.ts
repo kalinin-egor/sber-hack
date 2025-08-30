@@ -106,7 +106,8 @@ export class AnimalsService {
       params.append('animal_type', animalType);
     }
 
-    return this.makeRequest<Animal[]>(`/v1/animals/?${params.toString()}`);
+    const result = await this.makeRequest<{animals: Animal[], total: number, page: number, page_size: number}>(`/v1/animals/?${params.toString()}`);
+    return result.animals || [];
   }
 
   /**
@@ -200,7 +201,8 @@ export class AnimalsService {
    * Получение списка всех типов животных
    */
   async getAnimalTypes(): Promise<string[]> {
-    return this.makeRequest<string[]>('/v1/animals/types/list');
+    const result = await this.makeRequest<{animal_types: string[], total_types: number}>('/v1/animals/types/list');
+    return result.animal_types;
   }
 
   /**
