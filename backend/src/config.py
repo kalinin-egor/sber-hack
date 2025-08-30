@@ -12,7 +12,7 @@ class FastAPIConfig(BaseSettings):
     OPENAPI_TAGS: list = Field(
         default=[
             {"name": "Authorization", "description": "Module for authorization and token's work"},
-            {"name": "Agents", "description": "Module for agents works"},
+            {"name": "Animals", "description": "Module for animals management and audio processing"},
         ]
     )
 

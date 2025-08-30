@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from typing import Optional
 
 
@@ -20,6 +21,8 @@ class AnimalsServiceConfig(BaseSettings):
     # API ключи для внешних сервисов (если нужны для обработки аудио)
     SPEECH_API_KEY: Optional[str] = None
     
-    class Config:
-        env_file = ".env"
-        env_prefix = "ANIMALS_"
+    model_config = ConfigDict(
+        env_file=".env",
+        env_prefix="ANIMALS_",
+        extra="ignore"  # Игнорируем дополнительные переменные окружения
+    )
