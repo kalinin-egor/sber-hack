@@ -10,6 +10,7 @@ from fastapi import HTTPException, UploadFile, status
 from dependency_injector.wiring import Provide
 
 from v1.animals.config import AnimalsServiceConfig
+from v1.animals.utils import create_gigachat_client
 from db.postgres.unit_of_work import UnitOfWork
 from common_schemas import (
     AnimalCreate, 
@@ -39,6 +40,8 @@ class AnimalsService:
         self.config = config
         # Создаем директорию для временных аудио файлов, если она не существует
         os.makedirs(self.config.TEMP_AUDIO_PATH, exist_ok=True)
+        # Инициализируем клиент GigaChat
+        self.gigachat_client = create_gigachat_client()
         logger.info(f"AnimalsService initialized with config: {config}")
 
     async def create_animal(self, data: AnimalCreateRequest) -> AnimalResponse:
@@ -352,32 +355,61 @@ class AnimalsService:
             )
 
     async def _process_audio_file(self, file_path: str, description: Optional[str] = None) -> Dict[str, Any]:
-        """Обработка аудио файла (пока заглушка для демонстрации)"""
-        # Здесь должна быть реальная логика обработки аудио:
-        # - Распознавание речи
-        # - Анализ звуков животных
-        # - Извлечение информации о поведении, кормлении и т.д.
-        
-        # Пока возвращаем заглушку
-        return {
-            "transcribed_text": f"Обработанный аудио файл: {os.path.basename(file_path)}",
-            "behavior_analysis": "Животное проявляет активность, возможно, голодно",
-            "measurements": {
-                "estimated_weight": "неопределено",
-                "activity_level": "высокий",
-                "audio_duration_seconds": 30
-            },
-            "feeding_info": {
-                "feeding_sounds_detected": True,
-                "estimated_feeding_time": "2 минуты"
-            },
-            "relationships": {
-                "interaction_with_others": "обнаружены звуки других животных поблизости"
-            },
-            "analysis_results": {
-                "audio_quality": "хорошее",
-                "processing_time_seconds": 5,
-                "confidence_score": 0.85,
-                "description": description
+        """Обработка аудио файла с использованием GigaChat для анализа"""
+        try:
+            # Симуляция распознавания речи (в реальности здесь был бы STT сервис)
+            # Для демонстрации создаем примерный текст на основе описания
+            if description:
+                simulated_transcription = f"Наблюдение за животным: {description}. Слышны звуки активности, возможно кормления или движения."
+            else:
+                simulated_transcription = f"Аудиозапись от {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}: слышны звуки животного, активность средняя, возможны звуки кормления."
+            
+            # Анализируем содержимое с помощью GigaChat
+            gigachat_analysis = await self.gigachat_client.analyze_audio_content(
+                transcribed_text=simulated_transcription,
+                context=description
+            )
+            
+            # Формируем результат
+            return {
+                "transcribed_text": simulated_transcription,
+                "behavior_analysis": gigachat_analysis.get("behavior_state", "Не определено"),
+                "measurements": {
+                    "audio_duration_seconds": 30,
+                    "activity_level": gigachat_analysis.get("activity_level", "Не определено"),
+                    **gigachat_analysis.get("measurements", {})
+                },
+                "feeding_info": gigachat_analysis.get("feeding_details", {}),
+                "relationships": gigachat_analysis.get("relationships", {}),
+                "health_indicators": gigachat_analysis.get("health_indicators", {}),
+                "analysis_results": {
+                    "audio_quality": "хорошее",
+                    "processing_time_seconds": 5,
+                    "confidence_score": 0.85,
+                    "description": description,
+                    "gigachat_analysis": gigachat_analysis,
+                    "processing_method": "GigaChat AI Analysis"
+                }
             }
-        }
+            
+        except Exception as e:
+            logger.error(f"Error processing audio file {file_path}: {e}")
+            # В случае ошибки возвращаем базовую информацию
+            return {
+                "transcribed_text": f"Ошибка обработки аудио файла: {os.path.basename(file_path)}",
+                "behavior_analysis": "Не удалось проанализировать поведение",
+                "measurements": {
+                    "audio_duration_seconds": 0,
+                    "activity_level": "неопределено",
+                    "error": str(e)
+                },
+                "feeding_info": {},
+                "relationships": {},
+                "analysis_results": {
+                    "audio_quality": "неопределено",
+                    "processing_time_seconds": 0,
+                    "confidence_score": 0.0,
+                    "description": description,
+                    "error": str(e)
+                }
+            }

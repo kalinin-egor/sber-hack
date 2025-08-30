@@ -63,3 +63,4 @@ tzlocal==5.2
 uvicorn==0.32.0
 yarl==1.15.4
 python-multipart
+gigachat
