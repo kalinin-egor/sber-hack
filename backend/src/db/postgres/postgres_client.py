@@ -20,3 +20,20 @@ SYNC_DATABASE_URL = (
 DATABASE_URL = (
     f"postgresql+asyncpg://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}"
 )
+
+sync_engine = create_engine(SYNC_DATABASE_URL)
+engine = create_async_engine(DATABASE_URL)
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+async def session_maker() -> AsyncSession:
+    async_session = AsyncSession(engine)
+    return async_session
+
+
+async def sync_session_maker():
+    sync_session = AsyncSession(engine)
+    return sync_session

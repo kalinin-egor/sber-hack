@@ -14,7 +14,7 @@ services:
   postgres:
     image: postgres:15
     ports:
-      - "5440:5432"
+      - "5440:5440"
     environment:
       POSTGRES_USER: kalinin_egor
       POSTGRES_PASSWORD: 1234567890

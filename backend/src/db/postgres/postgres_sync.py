@@ -1,18 +1,14 @@
 from sqlalchemy.orm import sessionmaker
-from common_models import Search, DecisionMaker, User, TaskOutput
-from common_schemas import SearchSchema, DecisionMakerSchema, UserSchema, TaskOutputSchema
-import logging
+
+from common_models import DecisionMaker, Search, TaskOutput, User
+from schemas import DecisionMakerSchema, SearchSchema, TaskOutputSchema, UserSchema
+
 from .postgres_client import sync_engine
 
-
-logger = logging.getLogger(__name__)
 logger.info("Loading SyncDBHandler module")
 
-SyncSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=sync_engine
-)
+SyncSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_engine)
+
 
 class SyncDBHandler:
     """
@@ -63,7 +59,9 @@ class SyncDBHandler:
 
     def update_decision_maker_field(self, decision_maker_id: int, field: str, content: str) -> None:
         """Обновить значение указанного поля в записи DecisionMaker."""
-        dm = self._session.query(DecisionMaker).filter(DecisionMaker.id == decision_maker_id).first()
+        dm = (
+            self._session.query(DecisionMaker).filter(DecisionMaker.id == decision_maker_id).first()
+        )
         if not dm:
             raise Exception(f"DecisionMaker with ID {decision_maker_id} not found.")
         setattr(dm, field, content)
@@ -71,7 +69,9 @@ class SyncDBHandler:
 
     def read_decision_maker(self, decision_maker_id: int):
         """Прочитать запись DecisionMaker целиком."""
-        dm = self._session.query(DecisionMaker).filter(DecisionMaker.id == decision_maker_id).first()
+        dm = (
+            self._session.query(DecisionMaker).filter(DecisionMaker.id == decision_maker_id).first()
+        )
         if not dm:
             raise Exception(f"DecisionMaker with ID {decision_maker_id} not found.")
         return dm
