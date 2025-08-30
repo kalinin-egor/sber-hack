@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { container, AUDIO_RECORDING_SERVICE } from '../../shared/container';
 import { AudioRecordingService, RecordingState } from '../../infrastructure/services/AudioRecordingService';
 

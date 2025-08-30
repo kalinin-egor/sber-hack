@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { container, GRAPH_VISUALIZATION_SERVICE } from '../../shared/container';
 import { GraphVisualizationService } from '../../application/services/GraphVisualizationService';
 import { GraphDto } from '../../application/dto/GraphDto';

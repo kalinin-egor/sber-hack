@@ -3,10 +3,12 @@ import { AudioAnalyzer } from './components/AudioAnalyzer';
 import { GraphVisualization } from './components/GraphVisualization';
 import { Card, CardContent } from './components/ui/card';
 import { Badge } from './components/ui/badge';
+import { Button } from './components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 import { Separator } from './components/ui/separator';
-import { Activity, BarChart3, Mic, Network, Sparkles, TrendingUp, Clock } from 'lucide-react';
+import { Activity, BarChart3, Mic, Network, Sparkles, TrendingUp, Clock, LogOut, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from './presentation/stores/AuthContext';
 
 interface TranscriptionResult {
   text: string;
@@ -19,11 +21,16 @@ interface TranscriptionResult {
 export default function App() {
   const [transcriptions, setTranscriptions] = useState<TranscriptionResult[]>([]);
   const [activeTab, setActiveTab] = useState("analyzer");
+  const { state, logout } = useAuth();
 
   const handleTranscriptionComplete = (result: TranscriptionResult) => {
     setTranscriptions(prev => [...prev, result]);
     // Автоматически переключаемся на граф после анализа
     setTimeout(() => setActiveTab("graph"), 1000);
+  };
+
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (
@@ -50,8 +57,52 @@ export default function App() {
         />
       </div>
 
+      {/* Шапка с пользователем */}
+      <div className="relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="container mx-auto px-4 py-4"
+        >
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <motion.div
+                animate={{ rotate: [0, 360] }}
+                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full"
+              >
+                <Sparkles className="h-6 w-6 text-white" />
+              </motion.div>
+              <div>
+                <h2 className="text-lg font-semibold">Анализатор аудио</h2>
+                <p className="text-sm text-muted-foreground">Добро пожаловать!</p>
+              </div>
+            </div>
+            
+            {state.user && (
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 px-3 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg border">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{state.user.username}</span>
+                </div>
+                <Button
+                  onClick={handleLogout}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border hover:bg-red-50 hover:border-red-200 hover:text-red-600"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Выйти
+                </Button>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
+
       {/* Заголовок */}
-      <div className="container mx-auto px-4 py-12 relative z-10">
+      <div className="container mx-auto px-4 py-8 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
