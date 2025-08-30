@@ -132,6 +132,38 @@ async def process_audio(
     return ResponseSchema(exception=0, data=result.model_dump())
 
 
+@router.get("/audio/status/{transcription_id}", response_model=ResponseSchema)
+@inject
+async def get_audio_processing_status(
+    transcription_id: int,
+    animals_service: AnimalsService = Depends(Provide[AnimalsContainer.animals_service]),
+) -> ResponseSchema:
+    """
+    Получение статуса обработки аудио и результатов транскрипции
+    
+    Возвращает информацию о созданной транскрипции:
+    - Статус обработки
+    - Распознанный текст
+    - Результаты анализа поведения
+    - Время создания
+    """
+    try:
+        result = await animals_service.get_transcription_by_id(transcription_id)
+        return ResponseSchema(exception=0, data=result.model_dump())
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Unexpected error in get_audio_processing_status endpoint: {e}")
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error while retrieving transcription status"
+        )
+
+
 # Дополнительные эндпоинты для удобства работы с данными
 @router.get("/types/list", response_model=ResponseSchema)
 @inject

@@ -257,6 +257,27 @@ class AnimalsService:
                 updated_at=created_transcription.updated_at
             )
 
+    async def get_transcription_by_id(self, transcription_id: int) -> TranscriptionResponse:
+        """Получение транскрипции по ID"""
+        async with UnitOfWork() as uow:
+            transcription = await uow.animal_transcriptions.find_by_id(transcription_id)
+            if not transcription:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Transcription not found"
+                )
+
+            return TranscriptionResponse(
+                id=transcription.id,
+                animal_id=transcription.animal_id,
+                behavior_state=transcription.behavior_state,
+                measurements=transcription.measurements,
+                feeding_details=transcription.feeding_details,
+                relationships=transcription.relationships,
+                created_at=transcription.created_at,
+                updated_at=transcription.updated_at
+            )
+
     async def process_audio(
         self, 
         audio_file: UploadFile, 
@@ -279,7 +300,9 @@ class AnimalsService:
         temp_file_path = await self._save_temp_audio_file(audio_file)
         
         try:
-            # Обрабатываем аудио (пока заглушка)
+            logger.info(f"Processing audio file: {temp_file_path} for animal {data.animal_id}")
+            
+            # Обрабатываем аудио с помощью улучшенной системы транскрипции
             processing_result = await self._process_audio_file(temp_file_path, data.description)
             
             # Создаем транскрипцию на основе результатов обработки
@@ -295,6 +318,8 @@ class AnimalsService:
                 transcription_id = await uow.animal_transcriptions.insert_one(transcription_data)
                 await uow.commit()
 
+                logger.info(f"Transcription created successfully with ID: {transcription_id}")
+
                 return AudioProcessingResponse(
                     transcription_id=transcription_id,
                     animal_id=data.animal_id,
@@ -304,12 +329,15 @@ class AnimalsService:
                     created_at=datetime.utcnow()
                 )
 
+        except Exception as e:
+            logger.error(f"Error processing audio for animal {data.animal_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to process audio file: {str(e)}"
+            )
         finally:
             # Удаляем временный файл
-            try:
-                os.unlink(temp_file_path)
-            except Exception as e:
-                logger.warning(f"Failed to delete temporary file {temp_file_path}: {e}")
+            await self._cleanup_temp_file(temp_file_path)
 
     async def _validate_audio_file(self, audio_file: UploadFile) -> None:
         """Валидация аудио файла"""
@@ -317,7 +345,7 @@ class AnimalsService:
         if hasattr(audio_file, 'size') and audio_file.size > self.config.MAX_AUDIO_FILE_SIZE:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"Audio file too large. Maximum size: {self.config.MAX_AUDIO_FILE_SIZE} bytes"
+                detail=f"Audio file too large. Maximum size: {self.config.MAX_AUDIO_FILE_SIZE / (1024*1024):.1f} MB"
             )
 
         # Проверяем формат файла
@@ -326,30 +354,62 @@ class AnimalsService:
             if file_extension not in self.config.SUPPORTED_AUDIO_FORMATS:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Unsupported audio format. Supported formats: {', '.join(self.config.SUPPORTED_AUDIO_FORMATS)}"
+                    detail=f"Unsupported audio format: {file_extension}. Supported formats: {', '.join(self.config.SUPPORTED_AUDIO_FORMATS)}"
                 )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Audio file must have a filename"
+            )
 
     async def _save_temp_audio_file(self, audio_file: UploadFile) -> str:
         """Сохранение аудио файла во временную директорию"""
+        # Убеждаемся что директория существует
+        os.makedirs(self.config.TEMP_AUDIO_PATH, exist_ok=True)
+        
         # Генерируем уникальное имя файла
-        file_extension = audio_file.filename.split('.')[-1].lower() if audio_file.filename else 'tmp'
+        file_extension = audio_file.filename.split('.')[-1].lower() if audio_file.filename else 'wav'
         temp_filename = f"{uuid.uuid4()}.{file_extension}"
         temp_file_path = os.path.join(self.config.TEMP_AUDIO_PATH, temp_filename)
 
         try:
+            logger.info(f"Saving audio file to: {temp_file_path}")
+            
             # Сохраняем файл
             async with aiofiles.open(temp_file_path, 'wb') as temp_file:
                 content = await audio_file.read()
                 await temp_file.write(content)
             
+            # Проверяем что файл создался и имеет размер
+            if not os.path.exists(temp_file_path) or os.path.getsize(temp_file_path) == 0:
+                raise Exception("Failed to save audio file or file is empty")
+            
+            logger.info(f"Audio file saved successfully: {temp_file_path} ({os.path.getsize(temp_file_path)} bytes)")
             return temp_file_path
 
         except Exception as e:
             logger.error(f"Failed to save temporary audio file: {e}")
+            # Пытаемся удалить файл если он был создан
+            if os.path.exists(temp_file_path):
+                try:
+                    os.unlink(temp_file_path)
+                except:
+                    pass
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to save audio file"
+                detail=f"Failed to save audio file: {str(e)}"
             )
+
+    async def _cleanup_temp_file(self, temp_file_path: str) -> None:
+        """Удаление временного файла"""
+        try:
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+                logger.info(f"Temporary file deleted: {temp_file_path}")
+            else:
+                logger.warning(f"Temporary file not found for deletion: {temp_file_path}")
+        except Exception as e:
+            logger.warning(f"Failed to delete temporary file {temp_file_path}: {e}")
 
     async def _process_audio_file(self, file_path: str, description: Optional[str] = None) -> Dict[str, Any]:
         """Обработка аудио файла: транскрипция + анализ с помощью GigaChat"""
@@ -357,7 +417,7 @@ class AnimalsService:
             # Импортируем функции для обработки аудио
             from v1.animals.utils import transcribe_russian_audio, parse_text
             
-            # 1. Транскрибируем аудио в текст
+            # 1. Транскрибируем аудио в текст с помощью улучшенной системы
             logger.info(f"Starting audio transcription for file: {file_path}")
             transcribed_text = transcribe_russian_audio(file_path)
             

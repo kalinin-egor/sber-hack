@@ -10,7 +10,9 @@ class AnimalsServiceConfig(BaseSettings):
     MAX_AUDIO_FILE_SIZE: int = 50 * 1024 * 1024
     
     # Поддерживаемые форматы аудио файлов
-    SUPPORTED_AUDIO_FORMATS: list = ["mp3", "wav", "m4a", "flac", "aac"]
+    SUPPORTED_AUDIO_FORMATS: list = [
+        "mp3", "wav", "m4a", "flac", "aac", "ogg", "wma", "webm", "opus"
+    ]
     
     # Максимальная длительность аудио в секундах (по умолчанию 10 минут)
     MAX_AUDIO_DURATION: int = 600
@@ -20,6 +22,13 @@ class AnimalsServiceConfig(BaseSettings):
     
     # API ключи для внешних сервисов (если нужны для обработки аудио)
     SPEECH_API_KEY: Optional[str] = None
+    
+    # Настройки для обработки аудио
+    AUDIO_SAMPLE_RATE: int = 16000  # Частота дискретизации для модели
+    AUDIO_CHANNELS: int = 1  # Моно аудио
+    
+    # Таймауты для обработки
+    AUDIO_PROCESSING_TIMEOUT: int = 300  # 5 минут на обработку
     
     model_config = ConfigDict(
         env_file=".env",
