@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
+import { AudioAnalyzer } from './components/AudioAnalyzer';
+import { AnimalManagement } from './components/AnimalManagement';
+import { Card, CardContent } from './components/ui/card';
+import { Badge } from './components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
+import { Separator } from './components/ui/separator';
+import { Activity, BarChart3, Mic, PawPrint, Sparkles, TrendingUp, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useAuth } from '../stores/AuthContext';
-import { AuthPage } from './auth/AuthPage';
-import { Card, CardContent } from './ui/card';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Separator } from './ui/separator';
-import { Activity, BarChart3, Mic, PawPrint, Sparkles, TrendingUp, Clock, LogOut, User } from 'lucide-react';
-import { AudioAnalyzer } from './AudioAnalyzer';
-import { AnimalManagement } from './AnimalManagement';
 
 interface TranscriptionResult {
   text: string;
@@ -20,8 +17,7 @@ interface TranscriptionResult {
   animalName: string;
 }
 
-export function App() {
-  const { state, logout } = useAuth();
+export default function App() {
   const [transcriptions, setTranscriptions] = useState<TranscriptionResult[]>([]);
   const [activeTab, setActiveTab] = useState("analyzer");
 
@@ -30,19 +26,6 @@ export function App() {
     // Автоматически переключаемся на управление животными после анализа
     setTimeout(() => setActiveTab("animals"), 1000);
   };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
-
-  // Если пользователь не авторизован, показываем страницу авторизации
-  if (!state.isAuthenticated) {
-    return <AuthPage />;
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900 relative overflow-hidden">
@@ -68,49 +51,64 @@ export function App() {
         />
       </div>
 
-      {/* Шапка с информацией о пользователе */}
-      <div className="relative z-10 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+      {/* Заголовок */}
+      <div className="container mx-auto px-4 py-12 relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="text-center mb-12"
+        >
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <motion.div
+              animate={{
+                rotate: [0, 360],
+                scale: [1, 1.1, 1],
+              }}
+              transition={{
+                duration: 8,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="relative"
+            >
+              <div className="p-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-2xl">
+                <Sparkles className="h-10 w-10 text-white" />
+              </div>
               <motion.div
-                animate={{ rotate: [0, 360] }}
-                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-                className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full"
+                className="absolute inset-0 bg-gradient-to-br from-blue-400 to-purple-500 rounded-2xl blur opacity-40"
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              />
+            </motion.div>
+            <div>
+              <motion.h1
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent"
               >
-                <Sparkles className="h-6 w-6 text-white" />
-              </motion.div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Анализатор аудио
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  Система анализа звуков животных
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 px-3 py-2 bg-white/60 dark:bg-gray-900/60 rounded-full">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{state.user?.username}</span>
-              </div>
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-              >
-                <LogOut className="h-4 w-4" />
-                Выйти
-              </Button>
+                Анализатор аудио
+              </motion.h1>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: "100%" }}
+                transition={{ delay: 0.5, duration: 0.8 }}
+                className="h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mt-2"
+              />
             </div>
           </div>
-        </div>
-      </div>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed"
+          >
+            Загружайте или записывайте аудио для анализа и визуализации данных в интерактивном графе.
+            Используйте возможности искусственного интеллекта для обработки речи.
+          </motion.p>
+        </motion.div>
 
-      {/* Основной контент */}
-      <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Статистика */}
         <AnimatePresence>
           {transcriptions.length > 0 && (
@@ -167,7 +165,7 @@ export function App() {
                           animate={{ scale: 1, opacity: 1 }}
                           className="text-3xl font-bold"
                         >
-                          {transcriptions.length > 0 ? (transcriptions.reduce((acc, t) => acc + t.confidence, 0) / transcriptions.length * 100).toFixed(1) : 0}%
+                          {(transcriptions.reduce((acc, t) => acc + t.confidence, 0) / transcriptions.length * 100).toFixed(1)}%
                         </motion.p>
                       </div>
                       <motion.div
@@ -218,13 +216,13 @@ export function App() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.6 }}
         >
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
+              transition={{ delay: 0.8 }}
             >
               <TabsList className="grid w-full grid-cols-2 mb-10 h-14 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-lg border">
                 <TabsTrigger 
@@ -346,7 +344,7 @@ export function App() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
+          transition={{ delay: 1.2 }}
           className="mt-20 text-center"
         >
           <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg border">
@@ -373,5 +371,3 @@ export function App() {
     </div>
   );
 }
-
-export default App;
