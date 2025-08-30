@@ -86,12 +86,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Проверка сохраненных токенов при загрузке
   useEffect(() => {
-    const tokens = authService.getTokens();
-    if (tokens && authService.isTokenValid(tokens.access_token)) {
-      // Здесь можно добавить логику получения профиля пользователя
-      // Пока просто устанавливаем токены
-      dispatch({ type: 'UPDATE_TOKENS', payload: tokens });
-    }
+    const initializeAuth = async () => {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      
+      try {
+        const tokens = authService.getTokens();
+        if (tokens && authService.isTokenValid(tokens.access_token)) {
+          // Попробуем получить данные пользователя из localStorage
+          const savedUser = localStorage.getItem('user_profile');
+          if (savedUser) {
+            const user = JSON.parse(savedUser);
+            dispatch({ 
+              type: 'LOGIN_SUCCESS', 
+              payload: { tokens, user } 
+            });
+          } else {
+            // Если нет данных пользователя, очищаем токены
+            authService.clearTokens();
+            dispatch({ type: 'LOGOUT' });
+          }
+        } else {
+          // Токены недействительны, очищаем
+          authService.clearTokens();
+          localStorage.removeItem('user_profile');
+          dispatch({ type: 'LOGOUT' });
+        }
+      } catch (error) {
+        // При ошибке очищаем все данные
+        authService.clearTokens();
+        localStorage.removeItem('user_profile');
+        dispatch({ type: 'LOGOUT' });
+      } finally {
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
@@ -109,6 +139,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         expires_in: 3600
       };
       authService.saveTokens(tokens);
+      
+      // Сохраняем данные пользователя в localStorage
+      localStorage.setItem('user_profile', JSON.stringify(loginResponse.user));
       
       dispatch({ type: 'LOGIN_SUCCESS', payload: { 
         tokens, 
@@ -158,10 +191,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async (): Promise<void> => {
     try {
       await authService.logout();
+      localStorage.removeItem('user_profile');
       dispatch({ type: 'LOGOUT' });
     } catch (error) {
       console.error('Logout error:', error);
       // В любом случае очищаем локальное состояние
+      localStorage.removeItem('user_profile');
       dispatch({ type: 'LOGOUT' });
     }
   };
